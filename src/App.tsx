@@ -1,18 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { Bottle as BottleType, CreateBottleData } from './types/Bottle';
 import { useBottles } from './hooks/useBottles';
+import { useGamification } from './hooks/useGamification';
 import { processFiles } from './utils/fileUtils';
 import { addDaysToDate } from './utils/dateUtils';
 import { BottleCard } from './components/BottleCard';
 import { CreateBottle } from './components/CreateBottle';
 import { ViewBottle } from './components/ViewBottle';
-import { Plus, Waves, MessageCircle, Menu } from 'lucide-react';
+import { AchievementNotification } from './components/AchievementNotification';
+import { StatsPanel } from './components/StatsPanel';
+import { Plus, Waves, MessageCircle, Trophy, TrendingUp } from 'lucide-react';
 
 function App() {
   const { bottles, addBottle, deleteBottle, unlockBottle, refreshBottleStatus } = useBottles();
+  const {
+    userStats,
+    achievements,
+    streakData,
+    newAchievements,
+    onBottleCreated,
+    onBottleOpened,
+    dismissNewAchievements,
+    getStreakMessage
+  } = useGamification();
+  
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [selectedBottle, setSelectedBottle] = useState<BottleType | null>(null);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showStats, setShowStats] = useState(false);
 
   useEffect(() => {
     // Refresh bottle status every minute
@@ -63,11 +77,21 @@ function App() {
     };
     
     addBottle(bottle);
+    onBottleCreated(bottle);
   };
 
   const handleViewBottle = (bottle: BottleType) => {
     if (bottle.isUnlocked) {
       setSelectedBottle(bottle);
+      onBottleOpened(bottle);
+    }
+  };
+
+  const handleUnlockBottle = (id: string) => {
+    const bottle = bottles.find(b => b.id === id);
+    if (bottle) {
+      unlockBottle(id);
+      onBottleOpened(bottle);
     }
   };
 
@@ -76,6 +100,12 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 touch-manipulation">
+      {/* Achievement Notifications */}
+      <AchievementNotification
+        achievements={newAchievements}
+        onDismiss={dismissNewAchievements}
+      />
+
       {/* Animated background waves */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -left-40 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl animate-pulse"></div>
@@ -103,18 +133,64 @@ function App() {
                 </div>
               </div>
               
-              {/* Mobile Create Button */}
-              <button
-                onClick={() => setShowCreateForm(true)}
-                className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 active:scale-95 text-white px-4 sm:px-6 py-3 rounded-full font-medium transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-cyan-500/25 text-sm sm:text-base flex-shrink-0"
-              >
-                <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="hidden sm:inline">Create Bottle</span>
-                <span className="sm:hidden">Create</span>
-              </button>
+              {/* Header Actions */}
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setShowStats(!showStats)}
+                  className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-400 hover:to-pink-500 active:scale-95 text-white px-3 sm:px-4 py-2.5 sm:py-3 rounded-full font-medium transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-purple-500/25 text-sm sm:text-base flex-shrink-0"
+                >
+                  <Trophy className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden sm:inline">Stats</span>
+                </button>
+                
+                <button
+                  onClick={() => setShowCreateForm(true)}
+                  className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 active:scale-95 text-white px-4 sm:px-6 py-3 rounded-full font-medium transition-all duration-200 flex items-center space-x-2 shadow-lg hover:shadow-cyan-500/25 text-sm sm:text-base flex-shrink-0"
+                >
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden sm:inline">Create Bottle</span>
+                  <span className="sm:hidden">Create</span>
+                </button>
+              </div>
             </div>
+
+            {/* Streak Display */}
+            {streakData.current > 0 && (
+              <div className="mt-4 bg-gradient-to-r from-orange-500/20 to-red-600/20 rounded-xl p-3 sm:p-4 border border-orange-400/30">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="text-2xl">🔥</div>
+                    <div>
+                      <div className="text-lg font-bold text-orange-400">
+                        {streakData.current} Day Streak!
+                      </div>
+                      <div className="text-xs text-slate-400">
+                        {getStreakMessage()}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-slate-300">Best: {streakData.longest}</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </header>
+
+        {/* Stats Panel */}
+        {showStats && (
+          <div className="px-4 sm:px-6 pb-6">
+            <div className="max-w-7xl mx-auto">
+              <StatsPanel
+                stats={userStats}
+                streakData={streakData}
+                achievements={achievements}
+                streakMessage={getStreakMessage()}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Main Content */}
         <main className="px-4 sm:px-6 pb-12">
@@ -126,7 +202,7 @@ function App() {
                   No bottles yet
                 </h2>
                 <p className="text-slate-400 mb-6 sm:mb-8 max-w-md mx-auto text-sm sm:text-base leading-relaxed">
-                  Create your first message bottle and send a surprise to your future self!
+                  Create your first message bottle and start your journey of sending surprises to your future self!
                 </p>
                 <button
                   onClick={() => setShowCreateForm(true)}
@@ -154,7 +230,7 @@ function App() {
                           bottle={bottle}
                           onView={handleViewBottle}
                           onDelete={deleteBottle}
-                          onUnlock={unlockBottle}
+                          onUnlock={handleUnlockBottle}
                           onStatusChange={refreshBottleStatus}
                         />
                       ))}
@@ -178,7 +254,7 @@ function App() {
                           bottle={bottle}
                           onView={handleViewBottle}
                           onDelete={deleteBottle}
-                          onUnlock={unlockBottle}
+                          onUnlock={handleUnlockBottle}
                           onStatusChange={refreshBottleStatus}
                         />
                       ))}
