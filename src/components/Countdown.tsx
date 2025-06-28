@@ -31,7 +31,7 @@ export const Countdown: React.FC<CountdownProps> = ({
 
   return (
     <div className={`font-mono text-center ${className}`}>
-      <div className={`text-lg font-semibold ${
+      <div className={`text-base sm:text-lg font-semibold ${
         isUnlocked 
           ? 'text-emerald-400 animate-pulse' 
           : 'text-cyan-300'
